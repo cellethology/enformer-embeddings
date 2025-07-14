@@ -1,0 +1,7 @@
+# files
+*.csv
+*.safetensors
+*.7z
+
+# dir
+./data/*
