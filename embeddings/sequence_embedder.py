@@ -2,6 +2,7 @@ import pandas as pd
 import torch
 import numpy as np
 from pathlib import Path
+from enformer_pytorch import from_pretrained, seq_indices_to_one_hot
 
 def center_sequence_in_window(sequence, window_size=196608):
     """
@@ -79,6 +80,56 @@ def sequence_to_tensor(sequence):
     
     return torch.tensor(indices, dtype=torch.long)
 
+def get_sequence_embeddings(sequences, model=None, batch_size=1):
+    """
+    Get averaged embeddings for DNA sequences using Enformer model.
+    
+    Args:
+        sequences (list): List of DNA sequences
+        model: Pretrained Enformer model (loads if None)
+        batch_size (int): Batch size for processing
+    
+    Returns:
+        torch.Tensor: Averaged embeddings of shape (batch, 896)
+    """
+    if model is None:
+        print("Loading pretrained Enformer model...")
+        model = from_pretrained('EleutherAI/enformer-official-rough')
+        model.eval()
+    
+    embeddings_list = []
+    
+    with torch.no_grad():
+        for i in range(0, len(sequences), batch_size):
+            batch_sequences = sequences[i:i+batch_size]
+            
+            # Convert sequences to tensors
+            batch_tensors = []
+            for seq in batch_sequences:
+                tensor_seq = sequence_to_tensor(seq)
+                batch_tensors.append(tensor_seq)
+            
+            # Stack into batch
+            batch_tensor = torch.stack(batch_tensors)
+            
+            # Convert to one-hot
+            one_hot = seq_indices_to_one_hot(batch_tensor)
+            
+            # Get embeddings from model
+            _, embeddings = model(one_hot, return_embeddings=True)
+            
+            # Average across the feature dimension (3072) to get (batch, 896)
+            averaged_embeddings = embeddings.mean(dim=-1)
+            
+            embeddings_list.append(averaged_embeddings)
+            
+            print(f"Processed batch {i//batch_size + 1}, embeddings shape: {averaged_embeddings.shape}")
+    
+    # Concatenate all batches
+    all_embeddings = torch.cat(embeddings_list, dim=0)
+    
+    return all_embeddings
+
 def main():
     # Set paths
     csv_path = "/home/ubuntu/zelun-enformer/enformer-embeddings/data/166k_rice/post_embeddings/all_data_with_sequence.csv"
@@ -87,15 +138,17 @@ def main():
     # Process sequences
     df = process_sequences_from_csv(csv_path, output_path)
     
-    # Example: Convert first sequence to tensor
-    first_sequence = df['Processed_Sequence'].iloc[0]
-    tensor_seq = sequence_to_tensor(first_sequence)
+    # Example: Get embeddings for first few sequences
+    print("Getting embeddings for first 3 sequences...")
+    first_sequences = df['Processed_Sequence'].iloc[:3].tolist()
     
-    print(f"First sequence tensor shape: {tensor_seq.shape}")
-    print(f"First 10 values: {tensor_seq[:10]}")
-    print(f"Last 10 values: {tensor_seq[-10:]}")
+    # Get averaged embeddings
+    embeddings = get_sequence_embeddings(first_sequences, batch_size=1)
     
-    return df
+    print(f"Embeddings shape: {embeddings.shape}")
+    print(f"First embedding sample: {embeddings[0][:10]}")
+    
+    return df, embeddings
 
 if __name__ == "__main__":
     main()
