@@ -1,0 +1,3 @@
+[submodule "enformer-pytorch"]
+	path = enformer-pytorch
+	url = git@github.com:lucidrains/enformer-pytorch.git
