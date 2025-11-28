@@ -3,13 +3,21 @@ Module for retrieving embeddings from Enformer model.
 
 This module provides functions to initialize an Enformer model and retrieve
 embeddings for DNA sequences.
+python retrieve_embeddings/retrieve_embeddings.py \
+    --input-file test_files/test.fasta \
+    --output-file test_files/embeddings.npz
+
+python -m retrieve_embeddings.cli \
+    --input-file test_files/test.fasta \
+    --output-file test_files/embeddings.npz
 """
 
 import torch
+import numpy as np
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 from enformer_pytorch import Enformer, seq_indices_to_one_hot
-from .util import (
+from retrieve_embeddings.util import (
     fasta_sequences_to_tensors,
     read_fasta_sequences,
     dna_string_to_indices,
@@ -174,6 +182,8 @@ def retrieve_embeddings_from_fasta(
     pad_value: str | int = "N",
     return_outputs: bool = False,
     return_sequence_ids: bool = True,
+    save_path: Optional[str | Path] = None,
+    mean_pool: bool = False,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor], Optional[List[str]]]:
     """
     Read sequences from FASTA file and retrieve embeddings.
@@ -193,11 +203,18 @@ def retrieve_embeddings_from_fasta(
         return_outputs: If True, also returns model outputs. Defaults to False.
         return_sequence_ids: If True, returns list of sequence IDs from FASTA file.
                             Defaults to True.
+        save_path: Optional path to save embeddings in compressed npz format.
+                  If provided, saves embeddings and IDs as np.savez_compressed.
+                  Defaults to None.
+        mean_pool: If True, apply mean pooling across the embedding dimension.
+                  Reduces shape from (num_sequences, 896, 3072) to (num_sequences, 896).
+                  Defaults to False.
 
     Returns:
         Tuple containing:
-            - embeddings: Tensor of shape (num_sequences, target_length, embedding_dim).
-                         Default shape is (num_sequences, 896, 3072).
+            - embeddings: Tensor of shape (num_sequences, target_length, embedding_dim)
+                         if mean_pool=False, or (num_sequences, target_length) if mean_pool=True.
+                         Default shape is (num_sequences, 896, 3072) or (num_sequences, 896).
             - outputs: Optional tensor of model outputs if return_outputs=True, else None.
             - sequence_ids: Optional list of sequence IDs if return_sequence_ids=True, else None.
 
@@ -211,9 +228,11 @@ def retrieve_embeddings_from_fasta(
         torch.Size([3, 896, 3072])
         >>> print(ids)
         ['seq1', 'seq2', 'seq3']
-        >>> embeddings, _, ids = retrieve_embeddings_from_fasta("test.fasta", pad_value=-1)
+        >>> embeddings, _, ids = retrieve_embeddings_from_fasta(
+        ...     "test.fasta", pad_value=-1, save_path="embeddings.npz", mean_pool=True
+        ... )
         >>> print(embeddings.shape)
-        torch.Size([3, 896, 3072])
+        torch.Size([3, 896])
     """
     # Read sequences from FASTA and convert to tensors
     sequence_ids, sequence_tensors = fasta_sequences_to_tensors(
@@ -228,7 +247,27 @@ def retrieve_embeddings_from_fasta(
         sequence_tensors, model=model, return_outputs=return_outputs
     )
 
+    # Apply mean pooling if requested
+    if mean_pool:
+        embeddings = embeddings.mean(dim=-1)
+
+    # Save to npz if save_path is provided
+    if save_path is not None:
+        # Convert embeddings to numpy array
+        embeddings_np = embeddings.cpu().numpy()
+        # Convert sequence_ids to numpy array
+        ids_np = np.array(sequence_ids)
+        # Save in compressed npz format
+        np.savez_compressed(save_path, ids=ids_np, embeddings=embeddings_np)
+
     if return_sequence_ids:
         return embeddings, outputs, sequence_ids
     else:
         return embeddings, outputs, None
+
+
+if __name__ == "__main__":
+    # When run as script, delegate to CLI module
+    from retrieve_embeddings.cli import main
+
+    main()
