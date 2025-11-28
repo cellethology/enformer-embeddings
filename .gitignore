@@ -3,5 +3,20 @@
 *.safetensors
 *.7z
 
+# pycache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyz
+*.pyzw
+*.pyz
+*.pyzw
+
+
 # dir
 ./data/*
