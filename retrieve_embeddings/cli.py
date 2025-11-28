@@ -107,5 +107,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-# python -m retrieve_embeddings.cli     --input-file test.fasta     --output-file embeddings_mean_pool.npz     --mean-pool
