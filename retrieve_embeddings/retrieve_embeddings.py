@@ -114,37 +114,6 @@ def retrieve_embeddings(
             _, embeddings = model(sequence_indices, return_embeddings=True)
             return embeddings, None
 
-
-def retrieve_embeddings_from_indices(
-    sequence_indices: torch.Tensor,
-    model: Optional[Enformer] = None,
-    return_outputs: bool = False,
-) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
-    """
-    Retrieve embeddings from sequence indices (alias for retrieve_embeddings).
-
-    This is an alias for retrieve_embeddings for backward compatibility.
-
-    Args:
-        sequence_indices: Tensor of shape (batch_size, sequence_length) containing
-                         integer indices (0-4 for A, C, G, T, N).
-        model: Enformer model instance. If None, creates a new model with default parameters.
-        return_outputs: If True, also returns model outputs. Defaults to False.
-
-    Returns:
-        Tuple containing:
-            - embeddings: Tensor of shape (batch_size, target_length, embedding_dim).
-            - outputs: Optional tensor of model outputs if return_outputs=True, else None.
-
-    Example:
-        >>> model = create_enformer_model()
-        >>> seq = torch.randint(0, 5, (1, 196_608))
-        >>> embeddings, _ = retrieve_embeddings_from_indices(seq, model)
-        >>> print(embeddings.shape)
-        torch.Size([1, 896, 3072])
-    """
-    return retrieve_embeddings(sequence_indices, model=model, return_outputs=return_outputs)
-
 def retrieve_embeddings_from_fasta(
     fasta_path: str | Path,
     model: Optional[Enformer] = None,
@@ -214,7 +183,7 @@ def retrieve_embeddings_from_fasta(
     )
 
     # Retrieve embeddings
-    embeddings, outputs = retrieve_embeddings_from_indices(
+    embeddings, outputs = retrieve_embeddings(
         sequence_tensors, model=model, return_outputs=return_outputs
     )
 
