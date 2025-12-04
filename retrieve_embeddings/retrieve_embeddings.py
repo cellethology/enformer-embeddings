@@ -145,35 +145,6 @@ def retrieve_embeddings_from_indices(
     """
     return retrieve_embeddings(sequence_indices, model=model, return_outputs=return_outputs)
 
-
-def get_averaged_embeddings(
-    sequence_indices: torch.Tensor,
-    model: Optional[Enformer] = None,
-    dim: int = -1,
-) -> torch.Tensor:
-    """
-    Retrieve embeddings and average across a specified dimension.
-
-    Args:
-        sequence_indices: Tensor of shape (batch_size, sequence_length) containing
-                         integer indices (0-4 for A, C, G, T, N).
-        model: Enformer model instance. If None, creates a new model with default parameters.
-        dim: Dimension to average over. Defaults to -1 (last dimension, typically 3072).
-
-    Returns:
-        torch.Tensor: Averaged embeddings. If dim=-1, shape is (batch_size, target_length).
-
-    Example:
-        >>> model = create_enformer_model()
-        >>> seq = torch.randint(0, 5, (1, 196_608))
-        >>> avg_embeddings = get_averaged_embeddings(seq, model)
-        >>> print(avg_embeddings.shape)
-        torch.Size([1, 896])
-    """
-    embeddings, _ = retrieve_embeddings(sequence_indices, model=model)
-    return embeddings.mean(dim=dim)
-
-
 def retrieve_embeddings_from_fasta(
     fasta_path: str | Path,
     model: Optional[Enformer] = None,
@@ -249,7 +220,7 @@ def retrieve_embeddings_from_fasta(
 
     # Apply mean pooling if requested
     if mean_pool:
-        embeddings = embeddings.mean(dim=-1)
+        embeddings = embeddings.mean(dim=-2)
 
     # Save to npz if save_path is provided
     if save_path is not None:
