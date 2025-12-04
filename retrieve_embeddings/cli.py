@@ -58,7 +58,7 @@ def main() -> None:
     parser.add_argument(
         "--mean-pool",
         action="store_true",
-        help="Apply mean pooling across the embedding dimension (reduces shape from (N, 896, 3072) to (N, 896)).",
+        help="Apply mean pooling across the embedding dimension (reduces shape from (N, 896, 3072) to (N, 3072)).",
     )
 
     args = parser.parse_args()
