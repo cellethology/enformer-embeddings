@@ -110,7 +110,7 @@ def retrieve_embeddings(
     all_embeddings = []
     with torch.no_grad():
         for i in tqdm(
-            range(0, len(sequence_indices), config.batch_size),
+            range(0, len(sequence_indices), batch_size),
             desc="Extracting Features",
             unit="batch",
         ):
