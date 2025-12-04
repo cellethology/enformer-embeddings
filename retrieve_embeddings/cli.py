@@ -80,7 +80,7 @@ def main() -> None:
         model = create_enformer_model()
         print("Retrieving embeddings...")
 
-        embeddings, _, sequence_ids = retrieve_embeddings_from_fasta(
+        embeddings, sequence_ids = retrieve_embeddings_from_fasta(
             fasta_path=args.input_file,
             model=model,
             center_sequences=not args.no_center,
