@@ -14,6 +14,7 @@ python -m retrieve_embeddings.cli \
 
 import torch
 import numpy as np
+from tqdm import tqdm
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 from enformer_pytorch import Enformer, seq_indices_to_one_hot
@@ -70,7 +71,8 @@ def create_enformer_model(
 def retrieve_embeddings(
     sequence_indices: torch.Tensor,
     model: Optional[Enformer] = None,
-    return_outputs: bool = False,
+    batch_size: int = 8,
+    mean_pool: bool = True,
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
     """
     Retrieve embeddings from Enformer model for given sequence indices.
@@ -80,7 +82,6 @@ def retrieve_embeddings(
                          integer indices (0-4 for A, C, G, T, N).
                          Expected sequence length is 196,608.
         model: Enformer model instance. If None, creates a new model with default parameters.
-        return_outputs: If True, also returns model outputs. Defaults to False.
 
     Returns:
         Tuple containing:
@@ -105,14 +106,33 @@ def retrieve_embeddings(
 
     if model is None:
         model = create_enformer_model()
-
+    
+    all_embeddings = []
     with torch.no_grad():
-        if return_outputs:
-            outputs, embeddings = model(sequence_indices, return_embeddings=True)
-            return embeddings, outputs
-        else:
-            _, embeddings = model(sequence_indices, return_embeddings=True)
-            return embeddings, None
+        for i in tqdm(
+            range(0, len(sequences), config.batch_size),
+            desc="Extracting Features",
+            unit="batch",
+        ):
+            batch_sequences = sequence_indices[i : i + batch_size]
+            if not batch_sequences:
+                continue
+            while True:
+                try:
+                    _, embeddings = model(batch_sequences, return_embeddings=True)
+                    sequence_embeddings = embeddings.mean(dim=-2)
+                    all_embeddings.append(sequence_embeddings.cpu().numpy())
+                    break
+                except torch.cuda.OutOfMemoryError:
+                    print(
+                        f"CUDA Out of Memory on batch starting at index {i}. Retrying batch."
+                    )
+                    torch.cuda.empty_cache()
+                
+    if not all_embeddings:
+        return np.array([])
+
+    return np.concatenate(all_embeddings, axis=0)
 
 def retrieve_embeddings_from_fasta(
     fasta_path: str | Path,
@@ -183,27 +203,21 @@ def retrieve_embeddings_from_fasta(
     )
 
     # Retrieve embeddings
-    embeddings, outputs = retrieve_embeddings(
-        sequence_tensors, model=model, return_outputs=return_outputs
-    )
-
-    # Apply mean pooling if requested
-    if mean_pool:
-        embeddings = embeddings.mean(dim=-2)
+    embeddings = retrieve_embeddings(
+        sequence_tensors, model=model, batch_size=8, mean_pool=mean_pool
+    )   
 
     # Save to npz if save_path is provided
     if save_path is not None:
-        # Convert embeddings to numpy array
-        embeddings_np = embeddings.cpu().numpy()
         # Convert sequence_ids to numpy array
         ids_np = np.array(sequence_ids)
         # Save in compressed npz format
-        np.savez_compressed(save_path, ids=ids_np, embeddings=embeddings_np)
+        np.savez_compressed(save_path, ids=ids_np, embeddings=embeddings)
 
     if return_sequence_ids:
-        return embeddings, outputs, sequence_ids
+        return embeddings, sequence_ids
     else:
-        return embeddings, outputs, None
+        return embeddings, None
 
 
 if __name__ == "__main__":
