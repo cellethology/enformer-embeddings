@@ -230,7 +230,6 @@ def retrieve_embeddings_from_fasta(
         Tuple containing:
             - embeddings: NumPy array of embeddings (num_sequences, target_length, embedding_dim)
                          or (num_sequences, target_length) if mean_pool=True.
-            - outputs: Currently None (kept for compatibility).
             - sequence_ids: Optional list of sequence IDs if return_sequence_ids=True, else None.
     """
     # Read sequences from FASTA and convert to tensors
