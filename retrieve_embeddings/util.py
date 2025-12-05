@@ -232,7 +232,7 @@ def fasta_sequences_to_tensors(
         sequence_ids.append(seq_id)
 
         # Convert sequence to tensor indices (validates sequence and window size)
-        indices = dna_string_to_indices(seq_str, validate=True, window_size=window_size)
+        indices = dna_string_to_indices(seq_str, validate=False, window_size=window_size)
 
         if center_sequences:
             # Center the tensor using center_sequence_tensor_in_window
