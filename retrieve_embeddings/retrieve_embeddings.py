@@ -115,8 +115,6 @@ def retrieve_embeddings(
             unit="batch",
         ):
             batch_sequences = sequence_indices[i : i + batch_size]
-            if not batch_sequences:
-                continue
             while True:
                 try:
                     _, embeddings = model(batch_sequences, return_embeddings=True)
