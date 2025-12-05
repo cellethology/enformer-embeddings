@@ -75,10 +75,12 @@ def retrieve_embeddings(
     dev = _choose_device(device)
     model.to(dev)
     model.eval()
+    print("Obtained pre-trained Enformer model...")
 
     all_embeddings = []
     num_sequences = len(sequence_indices)
 
+    print("Retrieving embeddings...")
     with torch.no_grad():
         for start in tqdm(
             range(0, num_sequences, batch_size),
