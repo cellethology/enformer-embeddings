@@ -11,6 +11,23 @@ from typing import List, Tuple, Dict
 from Bio import SeqIO
 from tqdm import tqdm
 
+# 256-entry lookup table: default to 4 ("N")
+CHAR_TO_INDEX_TABLE = np.full(256, 4, dtype=np.int64)
+
+# Mapping: A=0, C=1, G=2, T=3, N=4, -=-1 (gap)
+_for_map = {
+    "A": 0,
+    "C": 1,
+    "G": 2,
+    "T": 3,
+    "N": 4,
+    "-": -1,
+}
+
+for base, idx in _for_map.items():
+    CHAR_TO_INDEX_TABLE[ord(base)] = idx
+    CHAR_TO_INDEX_TABLE[ord(base.lower())] = idx  # also set lowercase
+
 def validate_sequence(
     sequence: str,
     window_size: int | None = None,
@@ -109,31 +126,15 @@ def dna_string_to_indices(
     Convert DNA sequence string to tensor of indices.
 
     Mapping: A=0, C=1, G=2, T=3, N=4, -=-1 (gap character)
-
-    Args:
-        sequence: DNA sequence string (case-insensitive).
-        validate: If True, validates the sequence before conversion. Defaults to True.
-        window_size: Maximum allowed sequence length for validation. Defaults to None.
-
-    Returns:
-        torch.Tensor: Tensor of shape (sequence_length,) with integer indices.
-
-    Raises:
-        ValueError: If validate=True and sequence contains invalid characters or exceeds window_size.
-
-    Example:
-        >>> seq = "ACGTN-"
-        >>> indices = dna_string_to_indices(seq)
-        >>> print(indices)
-        tensor([0, 1, 2, 3, 4, -1])
     """
     if validate:
         validate_sequence(sequence, window_size=window_size)
 
-    mapping: Dict[str, int] = {"A": 0, "C": 1, "G": 2, "T": 3, "N": 4, "-": -1}
-
-    indices = [mapping.get(base.upper(), 4) for base in sequence]
-    return torch.tensor(indices, dtype=torch.long)
+    # Encode to bytes and map via lookup table
+    seq_bytes = sequence.encode("ascii", errors="ignore")
+    arr = np.frombuffer(seq_bytes, dtype=np.uint8)  # shape (seq_len,)
+    idx_np = CHAR_TO_INDEX_TABLE[arr]              # vectorized mapping
+    return torch.from_numpy(idx_np.astype(np.int64))
 
 def center_sequence_tensor_in_window(
     sequence_tensor: torch.Tensor,
