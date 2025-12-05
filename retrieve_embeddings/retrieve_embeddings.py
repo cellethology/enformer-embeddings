@@ -73,12 +73,13 @@ def retrieve_embeddings(
             while True:
                 try:
                     _, embeddings = model(sequence_tensors, return_embeddings=True)
+                    embeddings = embeddings.cpu().numpy()
 
                     if mean_pool:
-                        sequence_embeddings = embeddings.mean(dim=-2)
+                        sequence_embeddings = embeddings.mean(axis=-2)
                     else:
                         sequence_embeddings = embeddings
-                    all_embeddings.append(sequence_embeddings.cpu().numpy())
+                    all_embeddings.append(sequence_embeddings)
                     all_seq_ids.extend(sequence_ids)
                     break
                 except RuntimeError as e:
