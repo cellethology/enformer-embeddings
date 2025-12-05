@@ -6,10 +6,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from retrieve_embeddings.retrieve_embeddings import (
-    create_enformer_model,
-    retrieve_embeddings_from_fasta,
-)
+from retrieve_embeddings.retrieve_embeddings import retrieve_embeddings_from_fasta
 
 
 def main() -> None:
