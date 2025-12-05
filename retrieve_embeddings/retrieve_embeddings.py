@@ -142,6 +142,7 @@ def retrieve_embeddings_from_fasta(
     center_sequences: bool = True,
     window_size: int = 196_608,
     pad_value: int = -1,
+    batch_size: int = 8,
     return_outputs: bool = False,
     return_sequence_ids: bool = True,
     save_path: Optional[Union[str, Path]] = None,
@@ -160,6 +161,7 @@ def retrieve_embeddings_from_fasta(
                          Defaults to True.
         window_size: Target window size for centering. Defaults to 196,608.
         pad_value: Value to use for padding. Defaults to -1.
+        batch_size: size of batch for processing embeddings. Defaults to 8.
         return_outputs: Reserved for compatibility (not currently returned separately).
         return_sequence_ids: If True, returns list of sequence IDs from FASTA file.
                             Defaults to True.
@@ -188,7 +190,7 @@ def retrieve_embeddings_from_fasta(
     # Retrieve embeddings (this will move model and batches to GPU when available)
     print("Retrieving embeddings...")
     embeddings = retrieve_embeddings(
-        sequence_tensors, batch_size=8, mean_pool=mean_pool, device=device
+        sequence_tensors, batch_size=batch_size, mean_pool=mean_pool, device=device
     )
 
     # Save to npz if save_path is provided
