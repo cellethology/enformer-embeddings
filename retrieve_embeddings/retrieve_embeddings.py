@@ -19,7 +19,7 @@ import numpy as np
 from tqdm import tqdm
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List, Union
-from enformer_pytorch import Enformer, seq_indices_to_one_hot
+from enformer_pytorch import from_pretrained, seq_indices_to_one_hot
 from retrieve_embeddings.util import (
     fasta_sequences_to_tensors,
     read_fasta_sequences,
