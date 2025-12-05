@@ -9,7 +9,7 @@ import torch
 from pathlib import Path
 from typing import List, Tuple, Dict
 from Bio import SeqIO
-
+from tqdm import tqdm
 
 def validate_sequence(
     sequence: str,
@@ -194,7 +194,7 @@ def fasta_sequences_to_tensors(
     fasta_path: str | Path,
     center_sequences: bool = True,
     window_size: int = 196_608,
-    pad_value: str | int = "N",
+    pad_value: int = -1,
 ) -> Tuple[List[str], torch.Tensor]:
     """
     Read FASTA file and convert sequences to tensor format.
@@ -204,10 +204,7 @@ def fasta_sequences_to_tensors(
         center_sequences: If True, center sequences in window_size window with padding.
                          Defaults to True.
         window_size: Target window size for centering. Defaults to 196,608.
-        pad_value: Value to use for padding. Can be 'N', '-', or -1 (integer).
-                   If 'N', pads tensor with 4 (N index).
-                   If '-', pads tensor with -1.
-                   If -1, pads tensor directly with -1. Defaults to 'N'.
+        pad_value: Value to use for padding. Defaults to -1.
 
     Returns:
         Tuple containing:
@@ -229,19 +226,7 @@ def fasta_sequences_to_tensors(
     sequence_ids = []
     tensor_list = []
 
-    # Determine the integer pad value to use
-    if isinstance(pad_value, int):
-        tensor_pad_value = pad_value
-    elif pad_value == "N":
-        tensor_pad_value = 4  # N maps to index 4
-    elif pad_value == "-":
-        tensor_pad_value = -1  # - maps to -1
-    else:
-        raise ValueError(
-            f"pad_value must be 'N', '-', or an integer (typically -1), got '{pad_value}'"
-        )
-
-    for seq_id, seq_str in sequences:
+    for seq_id, seq_str in tqdm(sequences, desc="Converting sequences"):
         sequence_ids.append(seq_id)
 
         # Convert sequence to tensor indices (validates sequence and window size)
@@ -250,7 +235,7 @@ def fasta_sequences_to_tensors(
         if center_sequences:
             # Center the tensor using center_sequence_tensor_in_window
             indices = center_sequence_tensor_in_window(
-                indices, window_size=window_size, pad_value=tensor_pad_value
+                indices, window_size=window_size, pad_value=pad_value
             )
 
         tensor_list.append(indices)
