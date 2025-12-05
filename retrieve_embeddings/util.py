@@ -5,6 +5,7 @@ This module provides functions to read FASTA files and convert DNA sequences
 to the format required by Enformer models.
 """
 
+import numpy as np
 import torch
 from pathlib import Path
 from typing import List, Tuple, Dict
