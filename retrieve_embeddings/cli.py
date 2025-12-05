@@ -56,10 +56,13 @@ def main() -> None:
         help="Disable sequence centering (sequences must be exactly window_size).",
     )
     parser.add_argument(
-        "--mean-pool",
-        action="store_true",
-        help="Apply mean pooling across the embedding dimension (reduces shape from (N, 896, 3072) to (N, 3072)).",
+        "--no-mean-pool",
+        dest="mean_pool",
+        action="store_false",
+        help="Disable mean pooling (default: enabled).",
     )
+    
+    parser.set_defaults(mean_pool=True)
 
     args = parser.parse_args()
 
