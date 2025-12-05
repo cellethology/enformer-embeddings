@@ -40,55 +40,8 @@ def _choose_device(device: Optional[Union[str, torch.device]] = None) -> torch.d
         return torch.device(device)
     return device
 
-
-def create_enformer_model(
-    dim: int = 1536,
-    depth: int = 11,
-    heads: int = 8,
-    output_heads: Optional[Dict[str, int]] = None,
-    target_length: int = 896,
-    use_tf_gamma: bool = False,
-    device: Optional[Union[str, torch.device]] = None,
-) -> Enformer:
-    """
-    Create an Enformer model with specified hyperparameters and move it to the chosen device.
-
-    Args:
-        dim: Dimension of the model. Defaults to 1536.
-        depth: Number of transformer layers. Defaults to 11.
-        heads: Number of attention heads. Defaults to 8.
-        output_heads: Dictionary mapping species names to number of output heads.
-                     Defaults to {'human': 5313, 'mouse': 1643}.
-        target_length: Target sequence length for output. Defaults to 896.
-        use_tf_gamma: Whether to use TensorFlow gamma parameter. Defaults to False.
-        device: Optional device to move model to ('cuda', 'cpu', or torch.device). If None,
-                will use CUDA when available.
-
-    Returns:
-        Enformer: Initialized Enformer model in evaluation mode on the requested device.
-    """
-    if output_heads is None:
-        output_heads = dict(human=5313, mouse=1643)
-
-    # model = Enformer.from_hparams(
-    #     dim=dim,
-    #     depth=depth,
-    #     heads=heads,
-    #     output_heads=output_heads,
-    #     target_length=target_length,
-    #     use_tf_gamma=use_tf_gamma,
-    # )
-    model = from_pretrained("EleutherAI/enformer-official-rough")
-    dev = _choose_device(device)
-    model.to(dev)
-    model.eval()
-    
-    return model
-
-
 def retrieve_embeddings(
     sequence_indices: torch.Tensor,
-    model: Optional[Enformer] = None,
     batch_size: int = 8,
     mean_pool: bool = True,
     device: Optional[Union[str, torch.device]] = None,
@@ -118,17 +71,10 @@ def retrieve_embeddings(
             f"Expected 2D tensor (batch, seq_len), got {sequence_indices.dim()}D"
         )
 
+    model = from_pretrained("EleutherAI/enformer-official-rough")
     dev = _choose_device(device)
-
-    if model is None:
-        model = create_enformer_model(device=dev)
-    else:
-        # ensure the model is on the chosen device
-        try:
-            model.to(dev)
-        except Exception:
-            # Some models may not implement .to gracefully; ignore if it fails
-            pass
+    model.to(dev)
+    model.eval()
 
     all_embeddings = []
     num_sequences = len(sequence_indices)
@@ -192,7 +138,6 @@ def retrieve_embeddings(
 
 def retrieve_embeddings_from_fasta(
     fasta_path: Union[str, Path],
-    model: Optional[Enformer] = None,
     center_sequences: bool = True,
     window_size: int = 196_608,
     pad_value: Union[str, int] = "N",
@@ -210,7 +155,6 @@ def retrieve_embeddings_from_fasta(
 
     Args:
         fasta_path: Path to the FASTA file.
-        model: Enformer model instance. If None, creates a new model with default parameters.
         center_sequences: If True, center sequences in window_size window with padding.
                          Defaults to True.
         window_size: Target window size for centering. Defaults to 196,608.
@@ -243,7 +187,7 @@ def retrieve_embeddings_from_fasta(
 
     # Retrieve embeddings (this will move model and batches to GPU when available)
     embeddings = retrieve_embeddings(
-        sequence_tensors, model=model, batch_size=8, mean_pool=mean_pool, device=device
+        sequence_tensors, batch_size=8, mean_pool=mean_pool, device=device
     )
 
     # Save to npz if save_path is provided
