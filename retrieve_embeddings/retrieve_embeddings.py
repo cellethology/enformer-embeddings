@@ -70,18 +70,19 @@ def create_enformer_model(
     if output_heads is None:
         output_heads = dict(human=5313, mouse=1643)
 
-    model = Enformer.from_hparams(
-        dim=dim,
-        depth=depth,
-        heads=heads,
-        output_heads=output_heads,
-        target_length=target_length,
-        use_tf_gamma=use_tf_gamma,
-    )
-    model.eval()
-
+    # model = Enformer.from_hparams(
+    #     dim=dim,
+    #     depth=depth,
+    #     heads=heads,
+    #     output_heads=output_heads,
+    #     target_length=target_length,
+    #     use_tf_gamma=use_tf_gamma,
+    # )
+    model = from_pretrained("EleutherAI/enformer-official-rough")
     dev = _choose_device(device)
     model.to(dev)
+    model.eval()
+    
     return model
 
 
