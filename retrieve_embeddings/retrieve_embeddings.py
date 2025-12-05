@@ -254,9 +254,9 @@ def retrieve_embeddings_from_fasta(
         np.savez_compressed(save_path, ids=ids_np, embeddings=embeddings)
 
     if return_sequence_ids:
-        return embeddings, None, sequence_ids
+        return embeddings, sequence_ids
     else:
-        return embeddings, None, None
+        return embeddings, None
 
 
 if __name__ == "__main__":
