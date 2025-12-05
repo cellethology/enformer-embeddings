@@ -159,7 +159,7 @@ def fasta_sequences_to_tensors(
     sequence_ids = []
     tensor_list = []
 
-    for seq_id, seq_str in tqdm(sequences, desc="Converting sequences"):
+    for seq_id, seq_str in sequences:
         sequence_ids.append(seq_id)
 
         # Convert sequence to tensor indices (validates sequence and window size)

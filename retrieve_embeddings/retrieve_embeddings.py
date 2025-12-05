@@ -72,7 +72,7 @@ def retrieve_embeddings(
             retried_on_cpu = False
             while True:
                 try:
-                    _, embeddings = model(batch_sequences, return_embeddings=True)
+                    _, embeddings = model(sequence_tensors, return_embeddings=True)
 
                     if mean_pool:
                         sequence_embeddings = embeddings.mean(dim=-2)
@@ -96,7 +96,7 @@ def retrieve_embeddings(
                             model.to("cpu")
                         except Exception:
                             pass
-                        batch_sequences = batch_sequences.cpu()
+                        sequence_tensors = sequence_tensors.cpu()
                         dev = torch.device("cpu")
                         retried_on_cpu = True
                         continue
