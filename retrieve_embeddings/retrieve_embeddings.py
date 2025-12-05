@@ -18,67 +18,44 @@ import torch
 import numpy as np
 from tqdm import tqdm
 from pathlib import Path
-from typing import Optional, Tuple, Dict, List, Union
-from enformer_pytorch import Enformer, from_pretrained, seq_indices_to_one_hot
+from typing import Optional, Tuple, List, Union
+from enformer_pytorch import from_pretrained
 from retrieve_embeddings.util import (
     fasta_sequences_to_tensors,
     read_fasta_sequences,
-    dna_string_to_indices,
 )
 
 
-def _choose_device(device: Optional[Union[str, torch.device]] = None) -> torch.device:
-    """
-    Internal helper to pick a device.
-
-    If device is provided (str or torch.device) it is returned as torch.device.
-    If None, prefers CUDA when available.
-    """
-    if device is None:
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if isinstance(device, str):
-        return torch.device(device)
-    return device
+def _choose_device() -> torch.device:
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def retrieve_embeddings(
-    sequence_indices: torch.Tensor,
+    sequence,
     batch_size: int = 8,
     mean_pool: bool = True,
-    device: Optional[Union[str, torch.device]] = None,
+    center_sequences: bool = True,
+    window_size: int = 196_608,
+    pad_value: int = -1,
 ) -> np.ndarray:
     """
     Retrieve embeddings from Enformer model for given sequence indices.
 
-    This function will move the model and input batches to GPU if CUDA is available
-    (or to the provided device).
-
-    Args:
-        sequence_indices: Tensor of shape (num_sequences, sequence_length) containing
-                         integer indices (0-4 for A, C, G, T, N).
-        model: Enformer model instance. If None, creates a new model with default parameters.
-        batch_size: Number of sequences per batch.
-        mean_pool: If True, apply mean pooling across the second-to-last dimension as the
-                   original code did.
-        device: Optional device to use ('cuda' or 'cpu' or torch.device). If None, uses CUDA
-                when available.
+    This function will move the model and input batches to GPU if CUDA is available.
 
     Returns:
         NumPy array of concatenated embeddings with shape (num_sequences, target_length, embedding_dim)
         or (num_sequences, target_length) if mean_pool=True and pooling reduces the last dimension.
     """
-    if sequence_indices.dim() != 2:
-        raise ValueError(
-            f"Expected 2D tensor (batch, seq_len), got {sequence_indices.dim()}D"
-        )
 
     model = from_pretrained("EleutherAI/enformer-official-rough")
-    dev = _choose_device(device)
+    dev = _choose_device()
     model.to(dev)
     model.eval()
     print("Obtained pre-trained Enformer model...")
 
+    all_seq_ids = []
     all_embeddings = []
-    num_sequences = len(sequence_indices)
+    num_sequences = len(sequence)
 
     with torch.no_grad():
         for start in tqdm(
@@ -86,27 +63,23 @@ def retrieve_embeddings(
             desc="Extracting Features",
             unit="batch",
         ):
-            batch_sequences = sequence_indices[start : start + batch_size]
-
-            # ensure dtype is appropriate for model input (long indices)
-            if not batch_sequences.dtype.is_floating_point:
-                batch_sequences = batch_sequences.long()
+            selected = sequence[start : start + batch_size]
+            sequence_ids, sequence_tensors = fasta_sequences_to_tensors(selected, center_sequences, window_size,pad_value)
 
             # Move batch to device
-            batch_sequences = batch_sequences.to(dev)
+            sequence_tensors = sequence_tensors.to(dev)
 
             retried_on_cpu = False
             while True:
                 try:
-                    # The model is expected to return (outputs, embeddings) when return_embeddings=True.
-                    # We call with the batch on the same device as the model.
-                    outputs, embeddings = model(batch_sequences, return_embeddings=True)
-                    # original code averaged over dim -2; keep that behavior
+                    _, embeddings = model(batch_sequences, return_embeddings=True)
+
                     if mean_pool:
                         sequence_embeddings = embeddings.mean(dim=-2)
                     else:
                         sequence_embeddings = embeddings
                     all_embeddings.append(sequence_embeddings.cpu().numpy())
+                    all_seq_ids.extend(sequence_ids)
                     break
                 except RuntimeError as e:
                     # Catch CUDA OOM and fallback to CPU for this batch (move model too).
@@ -134,20 +107,16 @@ def retrieve_embeddings(
         # return empty numpy array of shape (0,)
         return np.array([])
 
-    return np.concatenate(all_embeddings, axis=0)
+    return all_seq_ids, np.concatenate(all_embeddings, axis=0)
 
 
 def retrieve_embeddings_from_fasta(
     fasta_path: Union[str, Path],
     center_sequences: bool = True,
     window_size: int = 196_608,
-    pad_value: int = -1,
     batch_size: int = 8,
-    return_outputs: bool = False,
-    return_sequence_ids: bool = True,
     save_path: Optional[Union[str, Path]] = None,
-    mean_pool: bool = False,
-    device: Optional[Union[str, torch.device]] = None,
+    mean_pool: bool = False
 ) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[List[str]]]:
     """
     Read sequences from FASTA file and retrieve embeddings.
@@ -160,17 +129,12 @@ def retrieve_embeddings_from_fasta(
         center_sequences: If True, center sequences in window_size window with padding.
                          Defaults to True.
         window_size: Target window size for centering. Defaults to 196,608.
-        pad_value: Value to use for padding. Defaults to -1.
         batch_size: size of batch for processing embeddings. Defaults to 8.
-        return_outputs: Reserved for compatibility (not currently returned separately).
-        return_sequence_ids: If True, returns list of sequence IDs from FASTA file.
-                            Defaults to True.
         save_path: Optional path to save embeddings in compressed npz format.
                   If provided, saves embeddings and IDs as np.savez_compressed.
                   Defaults to None.
         mean_pool: If True, apply mean pooling across the embedding dimension.
                   Defaults to False.
-        device: Optional device to use ('cuda' or 'cpu' or torch.device). If None, uses CUDA when available.
 
     Returns:
         Tuple containing:
@@ -179,18 +143,18 @@ def retrieve_embeddings_from_fasta(
             - sequence_ids: Optional list of sequence IDs if return_sequence_ids=True, else None.
     """
     # Read sequences from FASTA and convert to tensors
-    print("Converting fasta sequences to tensors...")
-    sequence_ids, sequence_tensors = fasta_sequences_to_tensors(
-        fasta_path,
-        center_sequences=center_sequences,
-        window_size=window_size,
-        pad_value=pad_value,
-    )
+    print("Reading fasta file...")
+    sequences = read_fasta_sequences(fasta_path)
 
-    # Retrieve embeddings (this will move model and batches to GPU when available)
+    # Retrieve embeddings
     print("Retrieving embeddings...")
-    embeddings = retrieve_embeddings(
-        sequence_tensors, batch_size=batch_size, mean_pool=mean_pool, device=device
+    sequence_ids, embeddings = retrieve_embeddings(
+        sequences, 
+        batch_size=batch_size, 
+        mean_pool=mean_pool, 
+        center_sequences=center_sequences,
+        window_size=window_size, 
+        pad_value=-1, 
     )
 
     # Save to npz if save_path is provided
@@ -200,10 +164,7 @@ def retrieve_embeddings_from_fasta(
         # Save in compressed npz format
         np.savez_compressed(save_path, ids=ids_np, embeddings=embeddings)
 
-    if return_sequence_ids:
-        return embeddings, sequence_ids
-    else:
-        return embeddings, None
+    return embeddings, sequence_ids
 
 
 if __name__ == "__main__":

@@ -148,27 +148,14 @@ def center_sequence_tensor_in_window(
 
 
 def fasta_sequences_to_tensors(
-    fasta_path: str | Path,
+    sequences,
     center_sequences: bool = True,
     window_size: int = 196_608,
     pad_value: int = -1,
 ) -> Tuple[List[str], torch.Tensor]:
     """
-    Read FASTA file and convert sequences to tensor format.
-
-    Args:
-        fasta_path: Path to the FASTA file.
-        center_sequences: If True, center sequences in window_size window with padding.
-                         Defaults to True.
-        window_size: Target window size for centering. Defaults to 196,608.
-        pad_value: Value to use for padding. Defaults to -1.
-
-    Returns:
-        Tuple containing:
-            - sequence_ids: List of sequence IDs from FASTA file.
-            - sequence_tensors: Tensor of shape (num_sequences, sequence_length) with indices.
+    Convert sequences to tensor format.
     """
-    sequences = read_fasta_sequences(fasta_path)
     sequence_ids = []
     tensor_list = []
 
