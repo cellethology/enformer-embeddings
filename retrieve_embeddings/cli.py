@@ -79,13 +79,9 @@ def main() -> None:
     # Process FASTA file and save embeddings
     try:
         print(f"Reading sequences from: {args.input_file}")
-        print("Creating Enformer model...")
-        model = create_enformer_model()
-        print("Retrieving embeddings...")
-
+        
         embeddings, sequence_ids = retrieve_embeddings_from_fasta(
             fasta_path=args.input_file,
-            model=model,
             center_sequences=not args.no_center,
             window_size=args.window_size,
             pad_value=pad_value,
