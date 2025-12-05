@@ -41,11 +41,10 @@ def main() -> None:
         help="Window size for sequence centering. Defaults to 196608.",
     )
     parser.add_argument(
-        "--pad-value",
-        type=str,
-        default="N",
-        choices=["N", "-", "-1"],
-        help="Padding value: 'N', '-', or '-1'. Defaults to 'N'.",
+        "--batch-size",
+        type=int,
+        default=8,
+        help="Batch size for processing embeddings",
     )
     parser.add_argument(
         "--no-center",
@@ -63,12 +62,6 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Convert pad_value string to appropriate type
-    if args.pad_value == "-1":
-        pad_value = -1
-    else:
-        pad_value = args.pad_value
-
     # Create output directory if it doesn't exist
     output_path = Path(args.output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -81,8 +74,8 @@ def main() -> None:
             fasta_path=args.input_file,
             center_sequences=not args.no_center,
             window_size=args.window_size,
-            pad_value=pad_value,
             save_path=args.output_file,
+            batch_size=args.batch_size,
             mean_pool=args.mean_pool,
         )
 
