@@ -5,7 +5,6 @@ This package provides utilities for retrieving embeddings from Enformer models.
 """
 
 from .retrieve_embeddings import (
-    create_enformer_model,
     retrieve_embeddings,
     retrieve_embeddings_from_fasta,
 )
@@ -18,7 +17,6 @@ from .util import (
 )
 
 __all__ = [
-    "create_enformer_model",
     "retrieve_embeddings",
     "retrieve_embeddings_from_fasta",
     "read_fasta_sequences",
