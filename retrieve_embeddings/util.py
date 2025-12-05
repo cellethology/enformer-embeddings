@@ -5,29 +5,11 @@ This module provides functions to read FASTA files and convert DNA sequences
 to the format required by Enformer models.
 """
 
-import numpy as np
 import torch
 from pathlib import Path
 from typing import List, Tuple, Dict
 from Bio import SeqIO
 from tqdm import tqdm
-
-# 256-entry lookup table: default to 4 ("N")
-CHAR_TO_INDEX_TABLE = np.full(256, 4, dtype=np.int64)
-
-# Mapping: A=0, C=1, G=2, T=3, N=4, -=-1 (gap)
-_for_map = {
-    "A": 0,
-    "C": 1,
-    "G": 2,
-    "T": 3,
-    "N": 4,
-    "-": -1,
-}
-
-for base, idx in _for_map.items():
-    CHAR_TO_INDEX_TABLE[ord(base)] = idx
-    CHAR_TO_INDEX_TABLE[ord(base.lower())] = idx  # also set lowercase
 
 def validate_sequence(
     sequence: str,
@@ -40,21 +22,9 @@ def validate_sequence(
     Checks that:
     1. Sequence length does not exceed window_size (if provided)
     2. Sequence contains only valid nucleotide characters
-
-    Args:
-        sequence: DNA sequence string to validate.
-        window_size: Maximum allowed sequence length. If None, no length check is performed.
-        allowed_chars: String of allowed characters. Defaults to 'ACGTN-'.
-
+    
     Raises:
         ValueError: If sequence length exceeds window_size or contains invalid characters.
-
-    Example:
-        >>> validate_sequence("ACGT", window_size=10)
-        >>> validate_sequence("ACGTX", window_size=10)  # Raises ValueError
-        Traceback (most recent call last):
-            ...
-        ValueError: Invalid character 'X' found in sequence. Allowed characters: ACGTN-
     """
     if allowed_chars is None:
         allowed_chars = "ACGTN-"
@@ -92,13 +62,6 @@ def read_fasta_sequences(
     Raises:
         FileNotFoundError: If the FASTA file does not exist.
         ValueError: If the FASTA file is empty or contains no valid sequences.
-
-    Example:
-        >>> sequences = read_fasta_sequences("test.fasta")
-        >>> print(f"Found {len(sequences)} sequences")
-        Found 3 sequences
-        >>> print(sequences[0][0])  # First sequence ID
-        seq1
     """
     fasta_path = Path(fasta_path)
     if not fasta_path.exists():
@@ -131,11 +94,9 @@ def dna_string_to_indices(
     if validate:
         validate_sequence(sequence, window_size=window_size)
 
-    # Encode to bytes and map via lookup table
-    seq_bytes = sequence.encode("ascii", errors="ignore")
-    arr = np.frombuffer(seq_bytes, dtype=np.uint8)  # shape (seq_len,)
-    idx_np = CHAR_TO_INDEX_TABLE[arr]              # vectorized mapping
-    return torch.from_numpy(idx_np.astype(np.int64))
+    mapping: Dict[str, int] = {"A": 0, "C": 1, "G": 2, "T": 3, "N": 4, "-": -1}
+    indices = [mapping.get(base.upper(), 4) for base in sequence]
+    return torch.tensor(indices, dtype=torch.long)
 
 def center_sequence_tensor_in_window(
     sequence_tensor: torch.Tensor,
@@ -145,9 +106,6 @@ def center_sequence_tensor_in_window(
     """
     Center a sequence tensor in a window of specified size, padding with specified value.
 
-    If the sequence is longer than the window, a ValueError is raised.
-    If shorter, it will be padded with the specified padding value on both sides.
-
     Args:
         sequence_tensor: Input sequence tensor of shape (sequence_length,).
         window_size: Target window size. Defaults to 196,608 (Enformer requirement).
@@ -155,9 +113,6 @@ def center_sequence_tensor_in_window(
 
     Returns:
         torch.Tensor: Centered sequence tensor of exactly window_size length.
-
-    Raises:
-        ValueError: If sequence length exceeds window_size.
 
     Example:
         >>> seq = torch.tensor([0, 1, 2, 3])  # ACGT
@@ -212,17 +167,6 @@ def fasta_sequences_to_tensors(
         Tuple containing:
             - sequence_ids: List of sequence IDs from FASTA file.
             - sequence_tensors: Tensor of shape (num_sequences, sequence_length) with indices.
-
-    Example:
-        >>> ids, tensors = fasta_sequences_to_tensors("test.fasta")
-        >>> print(tensors.shape)
-        torch.Size([3, 196608])
-        >>> ids, tensors = fasta_sequences_to_tensors("test.fasta", pad_value="-")
-        >>> print(tensors.shape)
-        torch.Size([3, 196608])
-        >>> ids, tensors = fasta_sequences_to_tensors("test.fasta", pad_value=-1)
-        >>> print(tensors.shape)
-        torch.Size([3, 196608])
     """
     sequences = read_fasta_sequences(fasta_path)
     sequence_ids = []
