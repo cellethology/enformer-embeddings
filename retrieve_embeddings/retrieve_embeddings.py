@@ -64,7 +64,7 @@ def retrieve_embeddings(
             unit="batch",
         ):
             selected = sequence[start : start + batch_size]
-            sequence_ids, sequence_tensors = fasta_sequences_to_tensors(selected, center_sequences, window_size,pad_value)
+            sequence_ids, sequence_tensors = fasta_sequences_to_tensors(selected, center_sequences, window_size, pad_value)
 
             # Move batch to device
             sequence_tensors = sequence_tensors.to(dev)

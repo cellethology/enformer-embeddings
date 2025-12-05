@@ -156,24 +156,27 @@ def fasta_sequences_to_tensors(
     """
     Convert sequences to tensor format.
     """
+
     sequence_ids = []
-    tensor_list = []
+    num_sequences = len(sequences)
+    sequence_tensors = torch.full(
+        (num_sequences, window_size),
+        pad_value,
+        dtype=torch.long,
+    )
 
-    for seq_id, seq_str in sequences:
+    for row_idx, (seq_id, seq_str) in enumerate(sequences):
         sequence_ids.append(seq_id)
+        indices = dna_string_to_indices(
+            seq_str,
+            validate=True,
+            window_size=window_size,
+        )
+        seq_len = indices.shape[0]
 
-        # Convert sequence to tensor indices (validates sequence and window size)
-        indices = dna_string_to_indices(seq_str, validate=False, window_size=window_size)
-
-        if center_sequences:
-            # Center the tensor using center_sequence_tensor_in_window
-            indices = center_sequence_tensor_in_window(
-                indices, window_size=window_size, pad_value=pad_value
-            )
-
-        tensor_list.append(indices)
-
-    sequence_tensors = torch.stack(tensor_list)
+        start = (window_size - seq_len) // 2
+        sequence_tensors[row_idx, start:start + seq_len] = indices
 
     return sequence_ids, sequence_tensors
+
 
