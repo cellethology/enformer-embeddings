@@ -27,8 +27,11 @@ packages = ["retrieve_embeddings"]
 
 [tool.uv.sources]
 torch = { index = "pytorch-nightly" }
+pytorch-triton = { index = "pytorch-nightly" }
+triton = { index = "pytorch-nightly" }
 
 [tool.uv]
+prerelease = "allow"
 required-environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
 
 [[tool.uv.index]]
