@@ -43,7 +43,7 @@ def main() -> None:
     parser.add_argument(
         "--batch-size",
         type=int,
-        default=8,
+        default=1,
         help="Batch size for processing embeddings",
     )
     parser.add_argument(
