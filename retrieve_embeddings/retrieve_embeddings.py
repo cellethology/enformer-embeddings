@@ -5,9 +5,6 @@ This module provides functions to initialize an Enformer model and retrieve
 embeddings for DNA sequences.
 
 Example usage:
-python retrieve_embeddings/retrieve_embeddings.py \
-    --input-file test_files/test.fasta \
-    --output-file test_files/embeddings.npz
 
 python -m retrieve_embeddings.cli \
     --input-file test_files/test.fasta \
